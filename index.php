@@ -50,7 +50,7 @@
 			</div>
 			<input type="text" id="userInput" size="90" /><input type="button" value="Say-it" onclick="getResponse()"/>
 			<br/>
-			<a href="about.html">About</a> <a href="trainingInterface.php">Keyword Tool</a>
+			<a href="about.html">About</a> | <a href="trainingInterface.php">Keyword Tool</a>
 			<script>
 				$("#userInput").keyup(function(e)
 				{
