@@ -9,15 +9,24 @@
 	}
 	else
 	{
+		//Behavior Constants
+		$WEIGHT_THRESHOLD = .2;
+		
+		//Session Variables
 		$previousMessage = (isset( $_SESSION['previousMessage'] ))? $_SESSION['previousMessage']:"";
 		$previousInput = (isset( $_SESSION['previousInput'] ))? $_SESSION['previousInput']:"";
 		$learningStep = (isset( $_SESSION['learningStep'] ))? $_SESSION['learningStep']:"";
-		$userInput = $_GET['message'];
 		
-		//Split the message into chunks.
-		$userInputChunks = explode(" ", $userInput);
+		$userInput = $_GET['message'];
+		//Format the input
+		$userInputFormatted = preg_replace("/\pP+/", "",  $userInput);
+		$userInputFormatted = strtolower($userInputFormatted);
+		
+		//Split the input into chunks.
+		$userInputChunks = explode(" ", $userInputFormatted);
 		
 		//Determine if it is a question or a statement
+		$inputType = "Statement";
 		
 		//Check to see if it is involved in a learning proceedure
 		if ($learningStep == "" || $learningStep == 0)
@@ -35,7 +44,10 @@
 				$keywords .= "KeywordValue = '$chunk'";
 			}
 			
-			$keywordResult = $mysqli->query("SELECT * FROM keywords WHERE $keywords ORDER BY ResponseID ASC");
+			$keywordResult = $mysqli->query("SELECT * from keywords INNER JOIN responses on keywords.ResponseID = responses.ResponseID
+											WHERE $keywords
+											and responses.ResponseType = '$inputType'");
+			
 			if (!$keywordResult) die("I'm having a brain fart at the moment.  Please try again.");
 			
 			//Calculate the best response
@@ -45,10 +57,56 @@
 				die("I'm not sure what you are talking about.  Will you tell me more?");
 			}
 			
+			$maxWeight = 0;
+			$currentWeight = 0;
+			$currentResponseID = 0;
+			$bestResponseID = 0;
+			
+			while ($currentKeyword = $keywordResult->fetch_assoc())
+			{
+				if ($currentResponseID == 0)
+				{
+					$currentResponseID =  $currentKeyword['ResponseID'];
+				}
+				
+				if ($currentResponseID != $currentKeyword['ResponseID'])
+				{
+					if ($maxWeight < $currentWeight)
+					{
+						$maxWeight = $currentWeight;
+						$bestResponseID = $currentResponseID;
+						$currentWeight = 0;
+					}
+				}
+
+				$currentWeight = $currentWeight + $currentKeyword['KeywordWeight'];
+			}
+			
+			if ($maxWeight < $currentWeight)
+			{
+				$maxWeight = $currentWeight;
+				$bestResponseID = $currentResponseID;
+			}
+			
 			
 			//If a response is not good enough try to learn something new.
-			
-			//Otherwise echo this response and save the current message and input in session.
+			if ($maxWeight < $WEIGHT_THRESHOLD)
+			{
+				echo "I don't feel comfortable in my knowledge about this.  Can you tell me more?";
+				$_SESSION['learningStep'] = 1;
+			}
+			else
+			{
+				$messageResult = $mysqli->query("SELECT * FROM messages WHERE ResponseID = $bestResponseID ORDER BY RAND() LIMIT 1");
+				
+				if (!$messageResult)  die("I'm having a brain fart at the moment.  Please try again.");
+				
+				$message = $messageResult->fetch_assoc();
+				
+				$_SESSION['previousMessage'] = $message;
+				$_SESSION['previousInput'] = $userInputFormatted;
+				echo $message['MessageValue'];
+			}
 		}
 		else
 		{
