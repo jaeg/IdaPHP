@@ -26,13 +26,13 @@
 		$userInputChunks = explode(" ", $userInputFormatted);
 		
 		//Determine if it is a question or a statement
-		$inputType = "Statement";
+		$inputType = classifyInput($userInput);
 		
 		//Check to see if it is involved in a learning proceedure
 		if ($learningStep == "" || $learningStep == 0)
 		{
 			//Query the keywords using these chunks
-			$keywords = "";
+			$keywords = "(";
 			$isFirst = true;
 			foreach ($userInputChunks as $chunk)
 			{
@@ -43,7 +43,7 @@
 				$isFirst = false;
 				$keywords .= "KeywordValue = '$chunk'";
 			}
-			
+			$keywords .= ")";
 			$keywordResult = $mysqli->query("SELECT * from keywords INNER JOIN responses on keywords.ResponseID = responses.ResponseID
 											WHERE $keywords
 											and responses.ResponseType = '$inputType'");
@@ -53,6 +53,7 @@
 			//Calculate the best response
 			if ($keywordResult->num_rows == 0)
 			{
+				$_SESSION['previousInput'] = $userInput;
 				$_SESSION['learningStep'] = 1;
 				die("I'm not sure what you are talking about.  Will you tell me more?");
 			}
@@ -93,6 +94,8 @@
 			if ($maxWeight < $WEIGHT_THRESHOLD)
 			{
 				echo "I don't feel comfortable in my knowledge about this.  Can you tell me more?";
+
+				$_SESSION['previousInput'] = $userInput;
 				$_SESSION['learningStep'] = 1;
 			}
 			else
@@ -104,7 +107,7 @@
 				$message = $messageResult->fetch_assoc();
 				
 				$_SESSION['previousMessage'] = $message;
-				$_SESSION['previousInput'] = $userInputFormatted;
+				$_SESSION['previousInput'] = $userInput;
 				echo $message['MessageValue'];
 			}
 		}
@@ -113,19 +116,68 @@
 			switch($learningStep)
 			{
 				case 1:
-					echo "This is where I confirm that you are going to teach me something.";
+					echo "Are you telling me the truth?";
+					$_SESSION['phraseToLearn'] = $userInput;
 					$_SESSION['learningStep'] = 2;
 					break;
 				case 2:
-					echo "This is where I confirm that what you said is true.";
-					$_SESSION['learningStep'] = 3;
-					break;
-				case 3:
-					echo "This is where I thank you for the information and then save it into the database.";
+					if (in_array("yes", $userInputChunks) || in_array("yep", $userInputChunks) || in_array("yah", $userInputChunks))
+					{
+						echo "Thanks for telling me that!";
+						$responseType = classifyInput($_SESSION['previousInput']);
+						$responseMessage = $mysqli->real_escape_string($_SESSION['phraseToLearn']);
+						
+						//Format the input
+						$userInputFormatted = preg_replace("/\pP+/", "",  $_SESSION['previousInput']);
+						$userInputFormatted = strtolower($userInputFormatted);
+						$keywords = explode(" ",$userInputFormatted);
+						
+						$mysqli->query("INSERT INTO responses(ResponseType) VALUES('$responseType')");
+						
+						$responseID = $mysqli->insert_id;
+						
+						$mysqli->query("INSERT INTO messages(ResponseID, MessageValue) VALUES($responseID, '$responseMessage')");
+						
+						foreach($keywords as $keyword)
+						{
+							$keyword = $mysqli->real_escape_string($keyword);
+							$keywordWeight = strlen($keyword)/15.0;
+							$mysqli->query("INSERT INTO keywords(ResponseID, KeywordValue, KeywordWeight) VALUES($responseID, '$keyword', $keywordWeight)");
+						}
+					}
+					else
+					{
+						echo "No one likes a liar!";
+					}
 					$_SESSION['learningStep'] = 0;
 					break;
 			}
 		}
 	}
 	
+	
+	function classifyInput($input)
+	{
+		$questionStarters = array("Who","What","Where","When","Why","How","Which","Wherefore","Whom","Whose","Wherewith","Whither","Whence","Do","Does");
+
+		if (stristr($input, "?") != false)
+		{
+			return "Question";
+		}
+		
+		//Format the input
+		$userInputFormatted = preg_replace("/\pP+/", "",  $input);
+		$userInputFormatted = strtolower($userInputFormatted);
+		
+		//Split the input into chunks.
+		$userInputChunks = explode(" ", $userInputFormatted);
+		
+		foreach ($questionStarters as $keyword)
+		{
+			if ($userInputChunks == $keyword)
+				return "Question";
+		}
+		
+		return "Statement";
+	}
 ?>
