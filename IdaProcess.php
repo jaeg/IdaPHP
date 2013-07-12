@@ -13,7 +13,7 @@
 		$WEIGHT_THRESHOLD = .2;
 		
 		//Session Variables
-		$previousMessage = (isset( $_SESSION['previousMessage'] ))? $_SESSION['previousMessage']:"";
+		$previousMessage = (isset( $_SESSION['previousResponse'] ))? $_SESSION['previousResponse']:"";
 		$previousInput = (isset( $_SESSION['previousInput'] ))? $_SESSION['previousInput']:"";
 		$learningStep = (isset( $_SESSION['learningStep'] ))? $_SESSION['learningStep']:"";
 		
@@ -77,9 +77,10 @@
 						$maxWeight = $currentWeight;
 						$bestResponseID = $currentResponseID;
 						$currentWeight = 0;
+						$currentResponseID = $currentKeyword['ResponseID'];
 					}
 				}
-
+		
 				$currentWeight = $currentWeight + $currentKeyword['KeywordWeight'];
 			}
 			
@@ -106,7 +107,7 @@
 				
 				$message = $messageResult->fetch_assoc();
 				
-				$_SESSION['previousMessage'] = $message;
+				$_SESSION['previousResponse'] = $bestResponseID;
 				$_SESSION['previousInput'] = $userInput;
 				echo $message['MessageValue'];
 			}
