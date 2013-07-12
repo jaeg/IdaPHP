@@ -49,6 +49,8 @@
 			<div style="border-style: solid; border-thickness: 1px; height: 300px; width: 500px; overflow: auto" id="messagelog" align="left">
 			</div>
 			<input type="text" id="userInput" size="90" /><input type="button" value="Say-it" onclick="getResponse()"/>
+			<br/>
+			<a href="about.html">About</a> <a href="trainingInterface.php">Keyword Tool</a>
 			<script>
 				$("#userInput").keyup(function(e)
 				{
