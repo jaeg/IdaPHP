@@ -159,12 +159,15 @@
 	
 	function classifyInput($input)
 	{
-		$questionStarters = array("Who","What","Where","When","Why","How","Which","Wherefore","Whom","Whose","Wherewith","Whither","Whence","Do","Does");
+		$questionStarters = array("who","what","where","when","why","how","which","wherefore","whom","whose","wherewith","whither","whence","do","does");
 
-		if (stristr($input, "?") != false)
+		if ($input[strlen($input)-1] == "?")
 		{
 			return "Question";
 		}
+		
+		if ($input[strlen($input)-1] == "." || $input[strlen($input)-1] == "!" )
+			return "Statement";
 		
 		//Format the input
 		$userInputFormatted = preg_replace("/\pP+/", "",  $input);
@@ -175,7 +178,7 @@
 		
 		foreach ($questionStarters as $keyword)
 		{
-			if ($userInputChunks == $keyword)
+			if ($userInputChunks[0] == $keyword)
 				return "Question";
 		}
 		
